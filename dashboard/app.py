@@ -11,6 +11,9 @@ import streamlit as st
 from services.youtube_service import YouTubeService
 from services.channel_analysis_service import analyze_channel
 
+from competitor_analyzer.comparison_analyzer import compare_channels
+from dashboard.comparison_ui import display_comparison
+
 from ui import (
     display_channel_information,
     display_recent_videos,
@@ -40,7 +43,17 @@ st.subheader("AI Powered YouTube Competitor Analyzer")
 # User Input
 # ---------------------------------------------------
 
-channel_name = st.text_input("Enter Channel Name")
+st.subheader("Select Channels")
+
+channel_name_1 = st.text_input(
+    "Channel 1",
+    placeholder="e.g. Fin Viraj",
+)
+
+channel_name_2 = st.text_input(
+    "Channel 2",
+    placeholder="e.g. CA Rachana Ranade",
+)
 
 
 # ---------------------------------------------------
@@ -49,49 +62,79 @@ channel_name = st.text_input("Enter Channel Name")
 
 if st.button("Analyze"):
 
-    channel_name = channel_name.strip()
+    channel_name_1 = channel_name_1.strip()
+    channel_name_2 = channel_name_2.strip()
 
-    if not channel_name:
-        st.warning("Please enter a channel name.")
+    if not channel_name_1 or not channel_name_2:
+        st.warning("Please enter both channel names.")
         st.stop()
 
     try:
         youtube = YouTubeService()
 
         with st.spinner("Searching YouTube..."):
-            channels = youtube.search_channel(channel_name)
+            channels1 = youtube.search_channel(channel_name_1)
+            channels2 = youtube.search_channel(channel_name_2)
 
-        if not channels:
-            st.error("No channel found.")
+        if not channels1:
+            st.error("No matches found for Channel 1.")
             st.stop()
 
-        st.success(f"Found {len(channels)} matching channels.")
+        if not channels2:
+            st.error("No matches found for Channel 2.")
+            st.stop()
 
-        selected_channel = st.selectbox(
-            "Select a Channel",
-            channels,
+        st.success(
+            f"Found {len(channels1)} matches for Channel 1 and "
+            f"{len(channels2)} matches for Channel 2."
+        )
+
+        selected_channel1 = st.selectbox(
+            "Select Channel 1",
+            channels1,
             format_func=lambda channel: channel["channel_name"],
         )
 
-        channel_id = selected_channel["channel_id"]
+        selected_channel2 = st.selectbox(
+            "Select Channel 2",
+            channels2,
+            format_func=lambda channel: channel["channel_name"],
+        )
 
-        with st.spinner("Analyzing channel..."):
-            result = analyze_channel(
-                channel_id=channel_id,
+        with st.spinner("Analyzing both channels..."):
+            channel1 = analyze_channel(
+                channel_id=selected_channel1["channel_id"],
                 max_results=10,
             )
 
-        info = result["info"]
-        analysis = result["analysis"]
-        keywords = result["keywords"]
-        topics = result["topics"]
-        topic_performance = result["topic_performance"]
-        table = result["table"]
-        ai_report = result["ai_report"]
+            channel2 = analyze_channel(
+                channel_id=selected_channel2["channel_id"],
+                max_results=10,
+            )
+            comparison = compare_channels(
+                channel1["info"],
+                channel2["info"],
+                channel1["analysis"],
+                channel2["analysis"],
+            )
 
         # ---------------------------------------------------
-        # Dashboard Sections
+        # Temporary Dashboard
+        # Displays Channel 1 using the current UI
         # ---------------------------------------------------
+
+        info = channel1["info"]
+        analysis = channel1["analysis"]
+        keywords = channel1["keywords"]
+        topics = channel1["topics"]
+        topic_performance = channel1["topic_performance"]
+        table = channel1["table"]
+        ai_report = channel1["ai_report"]
+
+        st.divider()
+        st.header(
+            f"Channel Analysis: {info.get('channel_name', 'Channel 1')}"
+        )
 
         display_channel_information(info)
         display_recent_videos(table)
@@ -121,6 +164,14 @@ if st.button("Analyze"):
         else:
             st.info("No recommendations were generated.")
 
+        # ---------------------------------------------------
+        # Channel Comparison
+        # ---------------------------------------------------
+
+        st.divider()
+
+        display_comparison(comparison)
+
     except Exception as error:
-        st.error("Something went wrong while analyzing the channel.")
+        st.error("Something went wrong while analyzing the channels.")
         st.exception(error)
