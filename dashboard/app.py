@@ -11,7 +11,11 @@ import streamlit as st
 from services.youtube_service import YouTubeService
 from services.channel_analysis_service import analyze_channel
 
-from competitor_analyzer.comparison_analyzer import compare_channels
+from competitor_analyzer.comparison_analyzer import (
+    compare_channels,
+    calculate_overall_winner,
+)
+
 from dashboard.comparison_ui import display_comparison
 
 from ui import (
@@ -72,6 +76,10 @@ if st.button("Analyze"):
     try:
         youtube = YouTubeService()
 
+        # ---------------------------------------------------
+        # Search Channels
+        # ---------------------------------------------------
+
         with st.spinner("Searching YouTube..."):
             channels1 = youtube.search_channel(channel_name_1)
             channels2 = youtube.search_channel(channel_name_2)
@@ -89,6 +97,10 @@ if st.button("Analyze"):
             f"{len(channels2)} matches for Channel 2."
         )
 
+        # ---------------------------------------------------
+        # Select Channels
+        # ---------------------------------------------------
+
         selected_channel1 = st.selectbox(
             "Select Channel 1",
             channels1,
@@ -101,6 +113,17 @@ if st.button("Analyze"):
             format_func=lambda channel: channel["channel_name"],
         )
 
+        if (
+            selected_channel1["channel_id"]
+            == selected_channel2["channel_id"]
+        ):
+            st.warning("Please select two different channels.")
+            st.stop()
+
+        # ---------------------------------------------------
+        # Analyze Both Channels
+        # ---------------------------------------------------
+
         with st.spinner("Analyzing both channels..."):
             channel1 = analyze_channel(
                 channel_id=selected_channel1["channel_id"],
@@ -111,16 +134,22 @@ if st.button("Analyze"):
                 channel_id=selected_channel2["channel_id"],
                 max_results=10,
             )
-            comparison = compare_channels(
-                channel1["info"],
-                channel2["info"],
-                channel1["analysis"],
-                channel2["analysis"],
-            )
 
         # ---------------------------------------------------
-        # Temporary Dashboard
-        # Displays Channel 1 using the current UI
+        # Compare Channels
+        # ---------------------------------------------------
+
+        comparison = compare_channels(
+            channel1["info"],
+            channel2["info"],
+            channel1["analysis"],
+            channel2["analysis"],
+        )
+
+        overall_result = calculate_overall_winner(comparison)
+
+        # ---------------------------------------------------
+        # Channel 1 Dashboard
         # ---------------------------------------------------
 
         info = channel1["info"]
@@ -131,10 +160,11 @@ if st.button("Analyze"):
         table = channel1["table"]
         ai_report = channel1["ai_report"]
 
+        channel1_name = info.get("name", "Channel 1")
+        channel2_name = channel2["info"].get("name", "Channel 2")
+
         st.divider()
-        st.header(
-            f"Channel Analysis: {info.get('channel_name', 'Channel 1')}"
-        )
+        st.header(f"Channel Analysis: {channel1_name}")
 
         display_channel_information(info)
         display_recent_videos(table)
@@ -168,9 +198,12 @@ if st.button("Analyze"):
         # Channel Comparison
         # ---------------------------------------------------
 
-        st.divider()
-
-        display_comparison(comparison)
+        display_comparison(
+            comparison,
+            channel1_name,
+            channel2_name,
+            overall_result,
+        )
 
     except Exception as error:
         st.error("Something went wrong while analyzing the channels.")

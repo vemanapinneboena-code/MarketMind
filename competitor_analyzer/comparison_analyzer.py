@@ -22,8 +22,8 @@ def compare_channels(
     first_average_comments = float(first_analysis.get("average_comments", 0))
     second_average_comments = float(second_analysis.get("average_comments", 0))
 
-    first_name = first_channel_info.get("channel_name", "Channel 1")
-    second_name = second_channel_info.get("channel_name", "Channel 2")
+    first_name = first_channel_info.get("name", "Channel 1")
+    second_name = second_channel_info.get("name", "Channel 2")
 
     return {
         "subscribers": {
@@ -67,3 +67,35 @@ def get_winner(first_value, second_value, first_name, second_name):
         return second_name
 
     return "Tie"
+
+def calculate_overall_winner(comparison):
+    scores = {}
+
+    for metric_data in comparison.values():
+        winner = metric_data["winner"]
+
+        if winner == "Tie":
+            continue
+
+        scores[winner] = scores.get(winner, 0) + 1
+
+    if not scores:
+        return {
+            "scores": {},
+            "winner": "Tie",
+        }
+
+    highest_score = max(scores.values())
+
+    winners = [
+        name
+        for name, score in scores.items()
+        if score == highest_score
+    ]
+
+    overall_winner = winners[0] if len(winners) == 1 else "Tie"
+
+    return {
+        "scores": scores,
+        "winner": overall_winner,
+    }
