@@ -1,4 +1,7 @@
-from competitor_analyzer.topic_classifier import TOPICS
+from competitor_analyzer.topic_classifier import (
+    TOPICS,
+    classify_video,
+)
 
 
 def analyze_topic_performance(recent_videos, video_stats):
@@ -16,14 +19,21 @@ def analyze_topic_performance(recent_videos, video_stats):
         title = video["title"].lower()
         stats = video_stats.get(video["video_id"], {})
 
-        for topic, keywords in TOPICS.items():
-            matched = any(keyword in title for keyword in keywords)
+        matched_topics = classify_video(video["title"])
 
-            if matched:
-                topic_data[topic]["videos"] += 1
-                topic_data[topic]["total_views"] += stats.get("views", 0)
-                topic_data[topic]["total_likes"] += stats.get("likes", 0)
-                topic_data[topic]["total_comments"] += stats.get("comments", 0)
+        for topic in matched_topics:
+            if topic not in topic_data:
+                topic_data["Other"] = {
+                    "videos": 0,
+                    "total_views": 0,
+                    "total_likes": 0,
+                    "total_comments": 0,
+                }
+
+            topic_data[topic]["videos"] += 1
+            topic_data[topic]["total_views"] += stats.get("views", 0)
+            topic_data[topic]["total_likes"] += stats.get("likes", 0)
+            topic_data[topic]["total_comments"] += stats.get("comments", 0)
 
     results = {}
 
